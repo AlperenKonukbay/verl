@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -x
+
+# Async GRPO training on Qwen2.5-0.5B with the DAPO math dataset
+
+rollout_mode="async"
+return_raw_chat="True"
+chat_scheduler=examples.ppo_trainer.naive_chat_scheduler.NaiveChatCompletionScheduler
+
+TRAIN_FILE=${TRAIN_FILE:-"$HOME/verl/data/dapo-math-17k.parquet"}
+VAL_FILE=${VAL_FILE:-"$HOME/verl/data/aime-2024.parquet"}
+
+python3 -m verl.trainer.main_ppo \
+    algorithm.adv_estimator=grpo \
+    data.train_files="$TRAIN_FILE" \
+    data.val_files="$VAL_FILE" \
+    data.return_raw_chat=$return_raw_chat \
+    data.train_batch_size=64 \
+    data.max_prompt_length=512 \
+    data.max_response_length=1024 \
+    data.filter_overlong_prompts=True \
+    data.truncation='error' \
+    data.shuffle=False \
+    actor_rollout_ref.model.path=Qwen/Qwen2.5-0.5B-Instruct \
+    actor_rollout_ref.actor.optim.lr=5e-7 \
+    actor_rollout_ref.model.use_remove_padding=True \
+    actor_rollout_ref.actor.ppo_mini_batch_size=16 \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=4096 \
+    actor_rollout_ref.actor.use_kl_loss=True \
+    actor_rollout_ref.actor.kl_loss_coef=0.001 \
+    actor_rollout_ref.actor.kl_loss_type=low_var_kl \
+    actor_rollout_ref.actor.entropy_coeff=0 \
+    actor_rollout_ref.model.enable_gradient_checkpointing=True \
+    actor_rollout_ref.actor.fsdp_config.param_offload=False \
+    actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
+    actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
+    actor_rollout_ref.rollout.name=vllm \
+    actor_rollout_ref.rollout.mode=$rollout_mode \
+    actor_rollout_ref.rollout.chat_scheduler=$chat_scheduler \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
+    actor_rollout_ref.rollout.n=5 \
+    actor_rollout_ref.ref.fsdp_config.param_offload=True \
+    actor_rollout_ref.actor.shuffle=False \
+    algorithm.use_kl_in_reward=False \
+    trainer.critic_warmup=0 \
+    trainer.logger=['console'] \
+    trainer.project_name='verl_grpo_dapo_math_async' \
+    trainer.experiment_name='qwen2.5_05b_async_grpo' \
+    trainer.val_before_train=False \
+    trainer.n_gpus_per_node=1 \
+    trainer.nnodes=1 \
+    trainer.save_freq=20 \
+    trainer.test_freq=5 \
+    trainer.total_epochs=1 "$@"

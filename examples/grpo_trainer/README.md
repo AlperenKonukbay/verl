@@ -64,6 +64,8 @@ Qwen2.5 GRPO training log and commands: [link](https://github.com/eric-haibin-li
 
 ```bash
 bash examples/grpo_trainer/run_qwen3-8b.sh
+bash examples/grpo_trainer/run_qwen05b_dapo.sh        # GRPO on DAPO 17k
+bash examples/grpo_trainer/run_qwen05b_dapo_async.sh  # Async GRPO on DAPO 17k
 ```
 
 For more reference performance, please see https://verl.readthedocs.io/en/latest/algo/baseline.html
